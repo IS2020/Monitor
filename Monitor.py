@@ -2,14 +2,16 @@ import serial
 import time
 import threading
 import csv
-
+import json
+from datetime import datetime
 class SerialMonitor(object):
     def __init__(self, port, threshold, path):
         self._port = port
         self._baudrate=9600
         self._conn = None
         self.path =path
-        self.queue =[]
+        self.queue={'values':[],
+                    'timestamp':[]}
         self.threshold=threshold
         self.buf = bytearray()
 
@@ -30,14 +32,15 @@ class SerialMonitor(object):
             #print(val.decode())
             val =val.decode()[:-2]
             if int(val) > self.threshold:
-                while muestra_to_csv <500:
+                while muestra_to_csv <200:
                     val_to_save =self.readline().decode()[:-2]
-                    self.queue.append(val_to_save)
+                    self.queue['values'].append(val_to_save)
+                    self.queue['timestamp'].append(time.time())
                     print(val_to_save)
                     muestra_to_csv+=1
                 print(self.queue)
                 try:
-                    write_csv_thread=threading.Thread(target=self.saveToCsv())
+                    write_csv_thread=threading.Thread(target=self.saveToJson())
                     write_csv_thread.start()
                     write_csv_thread.join()
                 except ValueError as error:
@@ -48,7 +51,7 @@ class SerialMonitor(object):
             for element in self.queue:
                 with open(self.path+"test_data.csv","a") as f:
                     writer = csv.writer(f,delimiter=",")
-                    writer.writerow([time.time(),element])
+                    writer.writerow([element['timestamp'],element['values']])
             self.queue.clear()
         except ValueError as error:
             print(error)
@@ -70,11 +73,21 @@ class SerialMonitor(object):
             else:
                 self.buf.extend(data)
 
+    def saveToJson(self):
+
+        with open(self.path+'medicion_test.json', 'w') as fp:
+            json.dump(self.queue,fp)
+        self.queue['values'].clear()
+        self.queue['timestamp'].clear()
 
 
+    def send_json_to_server():
+        with open('data.json', 'rb') as f: 
+         r = requests.post('http://127.0.0.1:8000/uploadData/', files={'file': f},params={"api_key":"$2y$10$rn.GcB6A9RY2ZnCrOVD0UOQAhPs5Ce5pTqR5rwN6SwBOmKzrw9Vg2","ts":timestamp}) 
+         print(r)
 
 def main():
-    s = SerialMonitor(port='/dev/cu.usbmodem14101', threshold=200, path='/Users/macbook/Documents/data_sismic/')
+    s = SerialMonitor(port='/dev/cu.usbmodem14201', threshold=200, path='/Users/macbook/Documents/data_sismic/')
     s.iniciaConexion()
     s.monitorListen()
 
