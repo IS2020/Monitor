@@ -15,6 +15,7 @@ class SerialMonitor(object):
                     'Timestamp':[]}
         self.threshold=threshold
         self.buf = bytearray()
+        self.host = '10.100.79.191:8000'
 
     def iniciaConexion(self):
         try:
@@ -33,15 +34,16 @@ class SerialMonitor(object):
             #print(val.decode())
             val =val.decode()[:-2]
             if int(val) > self.threshold:
-                while muestra_to_csv <500:
+                self.send_alert()
+                while muestra_to_csv <1000:
                     val_to_save =self.readline().decode()[:-2]
                     self.queue['Values'].append(int(val_to_save))
                     self.queue['Timestamp'].append(time.time())
-                    #print(val_to_save)
-                    self.send_alert()
+                    print(val_to_save)
+                    
                     muestra_to_csv+=1
                 self.send_json_to_server()
-                print(self.queue)
+                #print(self.queue)
                 try:
                     write_csv_thread=threading.Thread(target=self.saveToJson())
                     write_csv_thread.start()
@@ -87,15 +89,15 @@ class SerialMonitor(object):
         now =datetime.now()
         timestamp = int(datetime.timestamp(now))
         with open(self.path+'medicion_test.json', 'r') as f:
-         r = requests.post('http://10.100.65.181:8000/uploadData/', files={'file': f},params={"api_key":"$2y$10$IDkEvoU86ExXQg2wh7vydelVjwB/qvRunfWL2L.y7.m6wL5y8zsnm","ts":timestamp})
+         r = requests.post('http://%s/uploadData/'%self.host, files={'file': f},params={"api_key":"$2y$10$tiDpCUHGfl5/.AUt/uxotuOQp5gp3sebY6giL1SZzNF88BuPTw1ZO","ts":timestamp})
          print(r)
 
     def send_alert(self):
         now =datetime.now()
         timestamp = int(datetime.timestamp(now))
-        r = 'http://10.100.65.181:8000/notify/',params={"api_key":"$2y$10$IDkEvoU86ExXQg2wh7vydelVjwB/qvRunfWL2L.y7.m6wL5y8zsnm","ts":timestamp})
+        r = requests.post('http://%s/notify/'%self.host,params={"api_key":"$2y$10$tiDpCUHGfl5/.AUt/uxotuOQp5gp3sebY6giL1SZzNF88BuPTw1ZO","ts":timestamp})
 def main():
-    s = SerialMonitor(port='/dev/cu.usbmodem14201', threshold=200, path='/Users/macbook/Documents/data_sismic/')
+    s = SerialMonitor(port='/dev/cu.usbmodem14101', threshold=200, path='/Users/macbook/Documents/data_sismic/')
     s.iniciaConexion()
     s.monitorListen()
 
